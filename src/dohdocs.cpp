@@ -11,7 +11,8 @@ namespace eosio {
 
         candidatedocs_table docs(get_self(), get_self().value);
         docs.emplace(author, [&](auto& row) {
-            row.id = doc_id;
+            row.id = docs.available_primary_key();
+            row.doc_id = doc_id;
             row.faction_id = faction_id;
             row.language_id = language_id;
             row.author = author;
@@ -44,7 +45,8 @@ namespace eosio {
 
         publisheddocs_table published_docs(get_self(), get_self().value);
         published_docs.emplace(editor, [&](auto& row) {
-            row.id = doc_id;
+            row.id = published_docs.available_primary_key();
+            row.doc_id = doc_id;
             row.faction_id = faction_id;
             row.language_id = language_id;
             row.author = candidate_itr.author;

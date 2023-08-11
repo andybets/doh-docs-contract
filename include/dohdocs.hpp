@@ -56,18 +56,20 @@ namespace eosio {
          /* stores documents which have been submitted, but not yet approved */
          TABLE candidatedoc {
             uint64_t      id;
+            uint64_t      doc_id;
             uint32_t      faction_id;
             uint32_t      language_id;
             name          author;
             std::string   title;
             std::string   content;
             uint64_t primary_key() const { return id; }
-            uint128_t by_composite_key() const { return composite_key_128(id, faction_id, language_id); }
+            uint128_t by_composite_key() const { return composite_key_128(doc_id, faction_id, language_id); }
          };
 
          /* stores documents which have been approved by the relevant editor for the faction */
          TABLE  publisheddoc {
             uint64_t      id;
+            uint64_t      doc_id;
             uint32_t      faction_id;
             uint32_t      language_id;
             name          author;
@@ -76,7 +78,7 @@ namespace eosio {
             time_point    approved_at;
             name          approved_by;
             uint64_t primary_key() const { return id; }
-            uint128_t by_composite_key() const { return composite_key_128(id, faction_id, language_id); }
+            uint128_t by_composite_key() const { return composite_key_128(doc_id, faction_id, language_id); }
          };
 
          /* stores the list of authors permitted to submit documents */
