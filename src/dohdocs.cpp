@@ -26,30 +26,41 @@ namespace eosio {
         require_auth(author);
         
         candidatedocs_table docs(get_self(), get_self().value);
+        auto cand_idx = docs.get_index<"composite"_n>();
         auto doc_key = composite_key_128(item_id, faction_id, language_id);
-        auto doc_itr = docs.get(doc_key, "Document not found");
+        auto doc_itr = cand_idx.get(doc_key, "Document not found");
+
         eosio::check(doc_itr.author == author, "Only the author or editor can delete the document");
 
-        docs.erase(doc_itr);
+        docs.erase(docs.find(doc_itr.id));
     }
 
-    ACTION dohdocs::publish(const uint64_t item_id, const uint32_t faction_id, const uint32_t language_id, const name editor) {
+    ACTION dohdocs::publish(const name editor, const uint64_t doc_id) {
         require_auth(editor);
         
-        editors_table editors(get_self(), get_self().value);
-        auto editor_itr = editors.find(editor.value);
-        eosio::check(editor_itr != editors.end(), "Editor not registered");
-
         candidatedocs_table candidate_docs(get_self(), get_self().value);
-        auto candidate_key = composite_key_128(item_id, faction_id, language_id);
-        auto candidate_itr = candidate_docs.get(candidate_key, "Document not found");
+        auto candidate_itr = candidate_docs.get(doc_id, "Document not found");
+
+        editors_table editors(get_self(), get_self().value);
+        auto editor_idx = editors.get_index<"byeditor"_n>();
+        auto itr = editor_idx.lower_bound(editor.value);
+        bool found = false;
+        while(itr != editor_idx.end() && itr->account == editor) {
+            if(itr->faction_id == candidate_itr.faction_id) {
+                found = true;
+                break;
+            }
+            ++itr;
+        }
+
+        eosio::check(found, "Editor not registered for the specified faction");
 
         publisheddocs_table published_docs(get_self(), get_self().value);
         published_docs.emplace(editor, [&](auto& row) {
             row.id = published_docs.available_primary_key();
-            row.item_id = item_id;
-            row.faction_id = faction_id;
-            row.language_id = language_id;
+            row.item_id = candidate_itr.item_id;
+            row.faction_id = candidate_itr.faction_id;
+            row.language_id = candidate_itr.language_id;
             row.category_id = candidate_itr.category_id;
             row.author = candidate_itr.author;
             row.title = candidate_itr.title;
@@ -60,30 +71,54 @@ namespace eosio {
 
     }
 
-    ACTION dohdocs::unpublish(const uint64_t item_id, const uint32_t faction_id, const uint32_t language_id, const name editor) {
+    ACTION dohdocs::unpublish(const name editor, const uint64_t doc_id) {
         require_auth(editor);
-        
-        editors_table editors(get_self(), get_self().value);
-        auto editor_itr = editors.find(editor.value);
-        eosio::check(editor_itr != editors.end(), "Editor not registered");
 
         publisheddocs_table published_docs(get_self(), get_self().value);
-        auto pub_key = composite_key_128(item_id, faction_id, language_id);
-        auto pub_itr = published_docs.get(pub_key, "Document not found");
+        auto pub_itr = published_docs.get(doc_id, "Document not found");
 
-        published_docs.erase(pub_itr);
+        editors_table editors(get_self(), get_self().value);
+        auto editor_idx = editors.get_index<"byeditor"_n>();
+        auto itr = editor_idx.lower_bound(editor.value);
+        bool found = false;
+        while(itr != editor_idx.end() && itr->account == editor) {
+            if(itr->faction_id == pub_itr.faction_id) {
+                found = true;
+                break;
+            }
+            ++itr;
+        }
+
+        eosio::check(found, "Editor not registered for the specified faction");
+
+        published_docs.erase(published_docs.find(pub_itr.id));
     }
 
     ACTION dohdocs::regauthor(const name author, const uint32_t faction_id, const uint32_t language_id, const name editor) {
         require_auth(editor);
         
         editors_table editors(get_self(), get_self().value);
-        auto editor_itr = editors.find(editor.value);
-        eosio::check(editor_itr != editors.end(), "Editor not registered");
+        auto editor_idx = editors.get_index<"byeditor"_n>();
+        auto itr = editor_idx.lower_bound(editor.value);
+        bool found = false;
+        while(itr != editor_idx.end() && itr->account == editor) {
+            if(itr->faction_id == faction_id) {
+                found = true;
+                break;
+            }
+            ++itr;
+        }
+
+        eosio::check(found, "Editor not registered for the specified faction");
 
         authors_table authors(get_self(), get_self().value);
+        auto author_idx = authors.get_index<"composite"_n>();
+        auto author_key = composite_key_128(author.value, faction_id, language_id);
+        auto author_itr = author_idx.find(author_key);
+        eosio::check(author_itr == author_idx.end(), "Author already exists for faction and language");
+
         authors.emplace(editor, [&](auto& row) {
-            row.id = author.value;
+            row.id = authors.available_primary_key();
             row.account = author;
             row.faction_id = faction_id;
             row.language_id = language_id;
@@ -94,14 +129,25 @@ namespace eosio {
         require_auth(editor);
         
         editors_table editors(get_self(), get_self().value);
-        auto editor_itr = editors.find(editor.value);
-        eosio::check(editor_itr != editors.end(), "Editor not registered");
+        auto editor_idx = editors.get_index<"byeditor"_n>();
+        auto itr = editor_idx.lower_bound(editor.value);
+        bool found = false;
+        while(itr != editor_idx.end() && itr->account == editor) {
+            if(itr->faction_id == faction_id) {
+                found = true;
+                break;
+            }
+            ++itr;
+        }
+
+        eosio::check(found, "Editor not registered for the specified faction");
 
         authors_table authors(get_self(), get_self().value);
+        auto author_idx = authors.get_index<"composite"_n>();
         auto author_key = composite_key_128(author.value, faction_id, language_id);
-        auto author_itr = authors.get(author_key, "Author not found");
+        auto author_itr = author_idx.get(author_key, "Author not found");
 
-        authors.erase(author_itr);
+        authors.erase(authors.find(author_itr.id));
     }
 
     ACTION dohdocs::regeditor(const name editor, const uint32_t faction_id) {
@@ -109,7 +155,7 @@ namespace eosio {
         
         editors_table editors(get_self(), get_self().value);
         editors.emplace(get_self(), [&](auto& row) {
-            row.id = editor.value;
+            row.id = editors.available_primary_key();
             row.account = editor;
             row.faction_id = faction_id;
         });
@@ -119,10 +165,21 @@ namespace eosio {
         require_auth(get_self());
         
         editors_table editors(get_self(), get_self().value);
-        auto editor_itr = editors.find(editor.value);
-        eosio::check(editor_itr != editors.end(), "Editor not registered");
+        
+        auto editor_idx = editors.get_index<"byeditor"_n>(); // assuming you have a secondary index by editor
+        auto itr = editor_idx.lower_bound(editor.value);
 
-        editors.erase(editor_itr);
+        bool found = false;
+        while(itr != editor_idx.end() && itr->account == editor) {
+            if(itr->faction_id == faction_id) {
+                found = true;
+                editor_idx.erase(itr);
+                break;
+            }
+            ++itr;
+        }
+
+        eosio::check(found, "Editor not registered for the specified faction");
     }
 
     ACTION dohdocs::setcategory(const uint64_t category_id, const std::string name, const std::string description) {

@@ -24,10 +24,10 @@ namespace eosio {
          // publishes a candidate tooltip document for the faction and language specified, and copies it to the published table
          // the editor must be a registered editor for the faction specified
          // editor pays for multiindex ram
-         ACTION publish(const uint64_t item_id, const uint32_t faction_id, const uint32_t language_id, const name editor);
+         ACTION publish(const name editor, const uint64_t doc_id);
 
          // unpublishes a candidate tooltip document for the faction and language specified, and removes it from the published table
-         ACTION unpublish(const uint64_t item_id, const uint32_t faction_id, const uint32_t language_id, const name editor);
+         ACTION unpublish(const name editor, const uint64_t doc_id);
 
          // registers an author who can submit any document for the faction and language specified
          // an author may be registered several times for different factions/languages
@@ -132,7 +132,7 @@ namespace eosio {
             indexed_by<"composite"_n, const_mem_fun<author, uint128_t, &author::by_composite_key> > > authors_table;
 
          typedef eosio::multi_index< "editors"_n, editor,
-            indexed_by<"editor"_n, const_mem_fun<editor, uint64_t, &editor::by_editor> > > editors_table;
+            indexed_by<"byeditor"_n, const_mem_fun<editor, uint64_t, &editor::by_editor> > > editors_table;
 
    };
 }
