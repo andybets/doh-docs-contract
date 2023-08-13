@@ -8,7 +8,7 @@ namespace eosio {
 
    using std::string;
 
-   class [[eosio::contract("eosio.dohdocs")]] dohdocs : public contract {
+   class [[eosio::contract("dohdocs")]] dohdocs : public contract {
       public:
          using contract::contract;
 
